@@ -36,26 +36,37 @@
   "Download a Comics Journal issue and make a .cbr archive."
   (let ((url (format "http://www.tcj.com/archive-viewer-issue-%s/"
 		     issue))
+	(urls nil)
 	(page 1))
     (while (and url
-		(not (string-match "00001/$" url)))
-      (with-current-buffer (url-retrieve-synchronously url)
+		(not (string-match "00001/$" url))
+		(not (member url urls)))
+      (push url urls)
+      (with-current-buffer (url-retrieve-synchronously url t)
 	(goto-char (point-min))
 	(when (re-search-forward "^$" nil t)
 	  (let ((dom (libxml-parse-html-region (point) (point-max))))
 	    (loop for next in (dom-by-class dom "ngg-browser-next")
 		  for img = (dom-by-tag next 'img)
-		  when img
-		  do (tcj-download-image issue page (dom-attr img 'src))
+		  for src = (dom-attr img 'src)
+		  when (and src
+			    (not (member src urls)))
+		  do (tcj-download-image issue page src)
+		  (push src urls)		  
 		  (setq url (dom-attr next 'href)))))
 	(incf page)
 	(kill-buffer (current-buffer))))
     (tcj-create-cbr issue)))
 
+(defun tcj-download-range (from to)
+  (loop for issue from from upto to
+	do (tcj-download-issue issue)))
+
 (defun tcj-download-image (issue page url)
+  (message "Downloading page %s from issue %s" page issue)
   (let ((file (format "%s/tcj-%03d-%03d.jpg" tcj-directory issue page)))
     (unless (file-exists-p file)
-      (with-current-buffer (url-retrieve-synchronously url)
+      (with-current-buffer (url-retrieve-synchronously url t)
 	(goto-char (point-min))
 	(when (re-search-forward "\n\n" nil t)
 	  (write-region (point) (point-max) file))

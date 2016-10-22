@@ -32,10 +32,42 @@
 
 (defvar tcj-directory "~/tcj/")
 
+(defun tcj-issue-url (issue)
+  (cond
+   ((= issue 222)
+    "http://www.tcj.com/archive-viewer-issue-222-4/")
+   ((= issue 30)
+    "http://www.tcj.com/the-new-nostalgia-journal-no-30/")
+   ((= issue 27)
+    "http://www.tcj.com/issue-27/")
+   ((= issue 46)
+    "http://www.tcj.com/archive-image-viewer-issue-46/")
+   ((= issue 33)
+    "http://www.tcj.com/archive-viewer-the-comics-journal-no-33-april-1977/")
+   ((= issue 34)
+    "http://www.tcj.com/archive-issue-34/")
+   ((= issue 35)
+    ;; Different format
+    "http://www.tcj.com/archive-issue-35/")
+   ((= issue 190)
+    "http://www.tcj.com/archive-viewer-issue-190/")
+   ((= issue 228)
+    "http://www.tcj.com/archive-viewer-228/")
+   ((= issue 205)
+    "http://www.tcj.com/archive-viewer-205/")
+   ((= issue 263)
+    "http://www.tcj.com/archive-viewer-issue-262-2/")
+   ((= issue 271)
+    "http://www.tcj.com/archive-viewer-issue-271/")
+   ((= issue 280)
+    "http://www.tcj.com/archive-viewer-issue-280-2/")
+   (t
+    (format "http://www.tcj.com/archive-viewer-issue-%s/"
+	    issue))))
+
 (defun tcj-download-issue (issue)
   "Download a Comics Journal issue and make a .cbr archive."
-  (let ((url (format "http://www.tcj.com/archive-viewer-issue-%s/"
-		     issue))
+  (let ((url (tcj-issue-url issue))
 	(urls nil)
 	(page 1))
     (while (and url
@@ -78,6 +110,46 @@
 	   (format "tcj-%03d.cbr" issue)
 	   (directory-files tcj-directory nil
 			    (format "tcj-%03d-[0-9]+.jpg$" issue)))))
+
+(defun tcj-find-url (issue)
+  (with-current-buffer 
+      (url-retrieve-synchronously
+       (tcj-issue-url issue)
+       t)
+    (goto-char (point-min))
+    (when (re-search-forward "^$" nil t)
+      (let* ((dom (libxml-parse-html-region (point) (point-max)))
+	     (next (dom-by-class dom "ngg-browser-next")))
+	(dom-attr next 'href)))))
+
+(defun tcj-find-urls ()
+  (loop for issue from 27 upto 300
+	for url = (tcj-find-url issue)
+	do (message "%s" issue)
+	collect (cons issue url)))
+
+;; "http://www.tcj.com/archive-viewer-issue-183/nggallery/image/1003063103-i00002/"
+
+(defun tcj-create-url-cdb (map)
+  (setq map (loop for (issue . url) in map
+		  when url
+		  collect (cons issue
+				(and (string-match
+				      "/image/\\([0-9]+\\)-i\\([0-9]+\\)" url)
+				     (cons (match-string 1 url)
+					   (length (match-string 2 url)))))))
+  (with-temp-buffer
+    (dolist (file (directory-files "~/tcj/text/" nil "\\.txt\\'"))
+      (when (string-match "tcj-\\([0-9]+\\)-\\([0-9]+\\).txt" file)
+	(let ((issue (string-to-number (match-string 1 file)))
+	      (page (string-to-number (match-string 2 file))))
+	  (insert (format (format "/%%s %%snggallery/image/%%s-i%%0%dd/\n"
+				  (or (cdr (cdr (assq issue map))) 5))
+			  file
+			  (tcj-issue-url issue)
+			  (car (cdr (assq issue map)))
+			  page)))))
+    (write-region (point-min) (point-max) "/tmp/url.input")))
 
 (provide 'tcj)
 

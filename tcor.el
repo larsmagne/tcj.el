@@ -35,6 +35,7 @@
 	 (url-request-data
 	  (mm-url-encode-multipart-form-data
 	   `(("apikey" . ,tcor-api-key)
+	     ("isOverlayRequired" . "true")
 	     ("file" . (("filedata" . ,(with-temp-buffer
 					 (set-buffer-multibyte nil)
 					 (insert-file-contents file)

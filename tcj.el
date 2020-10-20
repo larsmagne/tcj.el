@@ -1,4 +1,4 @@
-;;; tcj.el --- The Comics Journal Archive Downloaderm -*- lexical-binding: t -*-
+;;; tcj.el --- The Comics Journal Archive Downloader -*- lexical-binding: t -*-
 ;; Copyright (C) 2016 Lars Magne Ingebrigtsen
 
 ;; Author: Lars Magne Ingebrigtsen <larsi@gnus.org>

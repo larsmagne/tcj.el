@@ -151,6 +151,26 @@
 			  page)))))
     (write-region (point-min) (point-max) "/tmp/url.input")))
 
+(defun tcj-find-issuu-urls ()
+  (cl-loop for year from 1976 upto 2009
+	   append
+	   (with-current-buffer (url-retrieve-synchronously
+				 (format "https://www.tcj.com/tcj-archive/%d/"
+					 year))
+	     (goto-char (point-min))
+	     (search-forward "\n\n")
+	     (let ((dom (libxml-parse-html-region (point) (point-max))))
+	       (kill-buffer (current-buffer))
+	       (cl-loop for issue in (dom-by-tag dom 'article)
+			collect (dom-attr (dom-by-tag issue 'a) 'href))))))
+
+(defun tcj-map-issuu-urls (issues)
+  (cl-loop for url in issues
+	   collect (cons (and (string-match "-\\([0-9]+\\)-.+$" url)
+			      (match-string 1 url))
+			 url)))
+  
+
 (provide 'tcj)
 
 ;;; tcj.el ends here
